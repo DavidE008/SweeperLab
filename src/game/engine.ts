@@ -628,6 +628,254 @@ function findSubsetPattern(board: Board): Hint | null {
   return null;
 }
 
+type SolverConstraint = {
+  clue: Cell;
+  variables: string[];
+  remaining: number;
+};
+
+type SolverResult = {
+  alwaysMines: Coordinate[];
+  alwaysSafe: Coordinate[];
+  supportsByTarget: Map<string, Coordinate[]>;
+};
+
+const MAX_SOLVER_COMPONENT_SIZE = 18;
+
+function buildSolverConstraints(board: Board) {
+  const variableCells = new Map<string, Cell>();
+  const constraints = clueSummaries(board).map((summary) => {
+    const variables = summary.hidden.map((cell) => {
+      const key = keyOf(cell.row, cell.col);
+      variableCells.set(key, cell);
+      return key;
+    });
+    return {
+      clue: summary.cell,
+      variables,
+      remaining: summary.remaining,
+    };
+  });
+
+  return {
+    constraints: constraints.filter((constraint) => constraint.variables.length > 0),
+    variableCells,
+  };
+}
+
+function variableComponents(variableKeys: string[], constraints: SolverConstraint[]) {
+  const neighbors = new Map<string, Set<string>>();
+  variableKeys.forEach((key) => neighbors.set(key, new Set()));
+  constraints.forEach((constraint) => {
+    constraint.variables.forEach((key) => {
+      const connected = neighbors.get(key);
+      if (!connected) {
+        return;
+      }
+      constraint.variables.forEach((otherKey) => {
+        if (otherKey !== key) {
+          connected.add(otherKey);
+        }
+      });
+    });
+  });
+
+  const seen = new Set<string>();
+  const components: string[][] = [];
+  variableKeys.forEach((key) => {
+    if (seen.has(key)) {
+      return;
+    }
+    const stack = [key];
+    const component: string[] = [];
+    seen.add(key);
+    while (stack.length > 0) {
+      const current = stack.pop();
+      if (!current) {
+        continue;
+      }
+      component.push(current);
+      neighbors.get(current)?.forEach((next) => {
+        if (!seen.has(next)) {
+          seen.add(next);
+          stack.push(next);
+        }
+      });
+    }
+    components.push(component);
+  });
+
+  return components;
+}
+
+function enumerateComponentSolutions(componentKeys: string[], constraints: SolverConstraint[]) {
+  const indexByKey = new Map(componentKeys.map((key, index) => [key, index]));
+  const localConstraints = constraints
+    .filter((constraint) => constraint.variables.every((key) => indexByKey.has(key)))
+    .map((constraint) => ({
+      indices: constraint.variables.map((key) => indexByKey.get(key) as number),
+      remaining: constraint.remaining,
+      clue: constraint.clue,
+    }));
+  const assignments = Array(componentKeys.length).fill(-1);
+  const mineCounts = Array(componentKeys.length).fill(0);
+  let totalSolutions = 0;
+
+  function isPartialValid() {
+    return localConstraints.every((constraint) => {
+      let assignedMines = 0;
+      let unknown = 0;
+      constraint.indices.forEach((index) => {
+        if (assignments[index] === 1) {
+          assignedMines += 1;
+        } else if (assignments[index] === -1) {
+          unknown += 1;
+        }
+      });
+      return assignedMines <= constraint.remaining && assignedMines + unknown >= constraint.remaining;
+    });
+  }
+
+  function search(index: number) {
+    if (!isPartialValid()) {
+      return;
+    }
+    if (index === componentKeys.length) {
+      totalSolutions += 1;
+      assignments.forEach((value, assignmentIndex) => {
+        if (value === 1) {
+          mineCounts[assignmentIndex] += 1;
+        }
+      });
+      return;
+    }
+
+    assignments[index] = 0;
+    search(index + 1);
+    assignments[index] = 1;
+    search(index + 1);
+    assignments[index] = -1;
+  }
+
+  search(0);
+
+  return {
+    totalSolutions,
+    mineCounts,
+    supports: localConstraints.map((constraint) => ({ row: constraint.clue.row, col: constraint.clue.col })),
+  };
+}
+
+function solveLocalConstraints(board: Board): SolverResult {
+  const { constraints, variableCells } = buildSolverConstraints(board);
+  const variableKeys = [...variableCells.keys()];
+  const supportsByTarget = new Map<string, Coordinate[]>();
+  const alwaysMines: Coordinate[] = [];
+  const alwaysSafe: Coordinate[] = [];
+
+  variableComponents(variableKeys, constraints).forEach((componentKeys) => {
+    if (componentKeys.length === 0 || componentKeys.length > MAX_SOLVER_COMPONENT_SIZE) {
+      return;
+    }
+    const result = enumerateComponentSolutions(componentKeys, constraints);
+    if (result.totalSolutions === 0) {
+      return;
+    }
+    componentKeys.forEach((key, index) => {
+      const cell = variableCells.get(key);
+      if (!cell) {
+        return;
+      }
+      const coordinate = { row: cell.row, col: cell.col };
+      supportsByTarget.set(key, result.supports);
+      if (result.mineCounts[index] === result.totalSolutions) {
+        alwaysMines.push(coordinate);
+      } else if (result.mineCounts[index] === 0) {
+        alwaysSafe.push(coordinate);
+      }
+    });
+  });
+
+  return {
+    alwaysMines: uniqueCoordinates(alwaysMines),
+    alwaysSafe: uniqueCoordinates(alwaysSafe),
+    supportsByTarget,
+  };
+}
+
+function chordUnlockScore(board: Board, targets: Coordinate[]) {
+  const targetKeys = new Set(targets.map(coordinateKey));
+  return board.flat().reduce((score, cell) => {
+    if (!cell.isRevealed || cell.neighborMines === 0) {
+      return score;
+    }
+    const neighbors = getNeighbors(board, cell.row, cell.col);
+    const flagsAfter = neighbors.filter(
+      (neighbor) => neighbor.isFlagged || targetKeys.has(keyOf(neighbor.row, neighbor.col)),
+    ).length;
+    if (flagsAfter !== cell.neighborMines) {
+      return score;
+    }
+    const hiddenAfter = neighbors.filter(
+      (neighbor) =>
+        !neighbor.isRevealed &&
+        !neighbor.isFlagged &&
+        !targetKeys.has(keyOf(neighbor.row, neighbor.col)),
+    ).length;
+    return score + hiddenAfter;
+  }, 0);
+}
+
+function findConstraintSolverHint(board: Board): Hint | null {
+  const solved = solveLocalConstraints(board);
+  const progressFlags = solved.alwaysMines
+    .map((target) => ({
+      target,
+      score: chordUnlockScore(board, [target]),
+    }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.target.row - b.target.row || a.target.col - b.target.col);
+
+  if (progressFlags.length > 0) {
+    const target = progressFlags[0].target;
+    return makeHint({
+      category: 'flag-for-info',
+      targets: [target],
+      supports: solved.supportsByTarget.get(coordinateKey(target)) ?? [],
+      action: 'flag',
+      goal: 'efficiency',
+      title: 'Forced Flag',
+      message:
+        'The highlighted numbers leave one valid arrangement: the marked covered cell is always a mine. Flag it to unlock the next chord.',
+      tileMessage: 'Flag the highlighted covered cell. The blue numbers prove it is a mine and it should unlock safe opens.',
+      confidence: 100,
+    });
+  }
+
+  if (solved.alwaysSafe.length > 0) {
+    const target = solved.alwaysSafe
+      .map((coordinate) => ({
+        coordinate,
+        information: getNeighbors(board, coordinate.row, coordinate.col).filter((cell) => cell.isRevealed).length,
+      }))
+      .sort((a, b) => b.information - a.information || a.coordinate.row - b.coordinate.row || a.coordinate.col - b.coordinate.col)[0]
+      .coordinate;
+    return makeHint({
+      category: 'safe',
+      targets: [target],
+      supports: solved.supportsByTarget.get(coordinateKey(target)) ?? [],
+      action: 'open',
+      goal: 'reasoning',
+      title: 'Forced Safe',
+      message: 'The highlighted numbers prove this covered cell cannot contain a mine. Open it before guessing.',
+      tileMessage: 'Open the highlighted covered cell. Every valid mine arrangement keeps it safe.',
+      confidence: 100,
+    });
+  }
+
+  return null;
+}
+
 function findMineCountHint(board: Board, setup: Setup): Hint | null {
   const hiddenCells = board.flat().filter((cell) => !cell.isRevealed && !cell.isFlagged);
   if (hiddenCells.length === 0) {
@@ -1039,6 +1287,11 @@ function analyzeBoard(
     return pattern;
   }
 
+  const constraintHint = findConstraintSolverHint(board);
+  if (constraintHint?.action === 'open') {
+    return constraintHint;
+  }
+
   const chord = satisfiedClues.find((item) => item.hidden.length > 1);
   if (chord) {
     const target = { row: chord.cell.row, col: chord.cell.col };
@@ -1057,6 +1310,10 @@ function analyzeBoard(
 
   if (mineCount) {
     return mineCount;
+  }
+
+  if (constraintHint?.action === 'flag') {
+    return constraintHint;
   }
 
   const usefulFlag = findUsefulFlagClue(board);

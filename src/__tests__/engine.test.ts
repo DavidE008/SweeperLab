@@ -108,6 +108,32 @@ describe('game engine', () => {
     expect(hint.targets).toEqual(expect.arrayContaining([{ row: 1, col: 0 }]));
   });
 
+  test('analyzeBoard finds forced flags from combined constraints before guessing', () => {
+    const setup = { key: 'custom' as const, label: 'Custom', rows: 5, cols: 5, mines: 5 };
+    const board = makeEmptyBoard(5, 5);
+    [
+      [1, 1, 2],
+      [1, 2, 1],
+      [1, 3, 3],
+      [2, 1, 1],
+      [2, 2, 0],
+      [2, 3, 2],
+      [3, 1, 2],
+      [3, 2, 1],
+      [3, 3, 1],
+    ].forEach(([row, col, neighborMines]) => {
+      board[row][col].isRevealed = true;
+      board[row][col].neighborMines = neighborMines;
+    });
+
+    const hint = analyzeBoard(board, setup, 'playing', createStats(), 99, 1, 0);
+
+    expect(hint.action).toBe('flag');
+    expect(hint.category).toBe('flag-for-info');
+    expect(hint.title).toBe('Forced Flag');
+    expect(hint.targets).toContainEqual({ row: 4, col: 1 });
+  });
+
   test('hint review helpers keep tile targets and brief postgame color language', () => {
     const concept = analyzeBoard(
       makeEmptyBoard(3, 3),

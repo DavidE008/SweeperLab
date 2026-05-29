@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
+  Image,
   LayoutChangeEvent,
   PanResponder,
   Pressable,
@@ -92,6 +93,8 @@ const GRID_SCALE_OPTIONS: { key: GridScaleKey; label: string; minCellSize: numbe
   { key: 'standard', label: 'Standard', minCellSize: 36 },
   { key: 'large', label: 'Large', minCellSize: 48 },
 ];
+
+const brandMarkSource = require('./assets/icon.png');
 
 function formatTime(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -980,11 +983,16 @@ export default function App() {
             {showCompletion && completion && (
               <View style={styles.completionOverlay}>
                 <View style={styles.completionPanel}>
-                  <Text style={styles.completionKicker}>{completion.levelLabel}</Text>
-                  <Text style={styles.completionTitle}>{completion.won ? 'Cleared' : 'Mine Hit'}</Text>
-                  <Text style={styles.completionSubtitle}>
-                    {completion.won ? 'Board solved.' : 'Run ended.'}
-                  </Text>
+                  <View style={styles.completionHeader}>
+                    <BrandMark />
+                    <View style={styles.completionTitleBlock}>
+                      <Text style={styles.completionKicker}>{completion.levelLabel}</Text>
+                      <Text style={styles.completionTitle}>{completion.won ? 'Cleared' : 'Mine Hit'}</Text>
+                      <Text style={styles.completionSubtitle}>
+                        {completion.won ? 'Board solved.' : 'Run ended.'}
+                      </Text>
+                    </View>
+                  </View>
 
                   <View style={styles.completionStats}>
                     <ResultStat label="Time" value={formatTime(completion.time)} />
@@ -1038,10 +1046,19 @@ export default function App() {
         ) : (
           <View style={styles.pageScreen}>
             <View style={styles.pageHeader}>
-              <View>
-                <Text style={styles.kicker}>SweeperLab</Text>
-                <Text style={styles.title}>{pageTitle}</Text>
-                <Text style={styles.pageSubtitle}>{pageSubtitle}</Text>
+              <View pointerEvents="none" style={styles.pageHeaderAccent}>
+                <View style={[styles.pageHeaderAccentSegment, styles.pageHeaderAccentPaper]} />
+                <View style={[styles.pageHeaderAccentSegment, styles.pageHeaderAccentLine]} />
+                <View style={[styles.pageHeaderAccentSegment, styles.pageHeaderAccentTile]} />
+                <View style={[styles.pageHeaderAccentSegment, styles.pageHeaderAccentPrimary]} />
+              </View>
+              <View style={styles.pageTitleRow}>
+                <BrandMark />
+                <View style={styles.pageTitleCopy}>
+                  <Text style={styles.kicker}>SweeperLab</Text>
+                  <Text style={styles.title}>{pageTitle}</Text>
+                  <Text style={styles.pageSubtitle}>{pageSubtitle}</Text>
+                </View>
               </View>
               <Pressable style={styles.newButton} onPress={() => setScreen('game')}>
                 <Text style={styles.newButtonText}>Play</Text>
@@ -1299,7 +1316,15 @@ function Metric({ label, value, tone = 'default' }: { label: string; value: stri
 function CompactCounter({ value, tone = 'default' }: { value: string; tone?: 'default' | 'danger' }) {
   return (
     <View style={[styles.compactCounter, tone === 'danger' && styles.compactCounterDanger]}>
-      <Text style={styles.compactCounterText}>{value}</Text>
+      <Text style={[styles.compactCounterText, tone === 'danger' && styles.compactCounterTextDanger]}>{value}</Text>
+    </View>
+  );
+}
+
+function BrandMark() {
+  return (
+    <View style={styles.brandMark}>
+      <Image source={brandMarkSource} style={styles.brandMarkImage} />
     </View>
   );
 }
@@ -1354,31 +1379,32 @@ function CoachStat({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: brand.surface,
+    backgroundColor: brand.warmPanel,
   },
   safeGame: {
-    backgroundColor: brand.deep,
+    backgroundColor: brand.ink,
   },
   app: {
     flex: 1,
   },
   appGame: {
-    backgroundColor: brand.deep,
+    backgroundColor: brand.ink,
   },
   pageScreen: {
+    backgroundColor: brand.warmPanel,
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 12,
   },
   gameScreen: {
-    backgroundColor: brand.deep,
+    backgroundColor: brand.ink,
     flex: 1,
     position: 'relative',
   },
   gameHud: {
     alignItems: 'center',
-    backgroundColor: brand.deep,
-    borderBottomColor: brand.deepMuted,
+    backgroundColor: brand.ink,
+    borderBottomColor: brand.primary,
     borderBottomWidth: 1,
     columnGap: 8,
     flexDirection: 'row',
@@ -1389,9 +1415,9 @@ const styles = StyleSheet.create({
   },
   compactCounter: {
     alignItems: 'center',
-    backgroundColor: brand.deep,
-    borderColor: brand.primary,
-    borderRadius: 4,
+    backgroundColor: brand.charcoal,
+    borderColor: brand.graphiteLight,
+    borderRadius: 8,
     borderWidth: 2,
     height: 42,
     justifyContent: 'center',
@@ -1402,12 +1428,15 @@ const styles = StyleSheet.create({
     borderColor: brand.dangerDark,
   },
   compactCounterText: {
-    color: brand.counterRed,
+    color: brand.tile,
     fontFamily: 'monospace',
     fontSize: 28,
     fontWeight: '900',
     letterSpacing: 0,
     lineHeight: 32,
+  },
+  compactCounterTextDanger: {
+    color: brand.counterRed,
   },
   hudButtons: {
     columnGap: 6,
@@ -1418,9 +1447,9 @@ const styles = StyleSheet.create({
   },
   hudButton: {
     alignItems: 'center',
-    backgroundColor: brand.primary,
-    borderColor: brand.tile,
-    borderRadius: 4,
+    backgroundColor: brand.charcoal,
+    borderColor: brand.graphiteLight,
+    borderRadius: 8,
     borderWidth: 1,
     height: 38,
     justifyContent: 'center',
@@ -1429,7 +1458,7 @@ const styles = StyleSheet.create({
   },
   hudButtonActive: {
     backgroundColor: brand.primary,
-    borderColor: brand.tile,
+    borderColor: brand.paper,
   },
   hudButtonText: {
     color: brand.offWhite,
@@ -1440,7 +1469,7 @@ const styles = StyleSheet.create({
     color: brand.white,
   },
   setupOverlay: {
-    backgroundColor: brand.paper,
+    backgroundColor: brand.warmPanel,
     borderColor: brand.line,
     borderRadius: 8,
     borderWidth: 1,
@@ -1473,7 +1502,7 @@ const styles = StyleSheet.create({
   },
   setupCloseButton: {
     alignItems: 'center',
-    backgroundColor: brand.text,
+    backgroundColor: brand.charcoal,
     borderRadius: 6,
     height: 32,
     justifyContent: 'center',
@@ -1491,7 +1520,7 @@ const styles = StyleSheet.create({
   },
   levelButtonCompact: {
     backgroundColor: brand.white,
-    borderColor: brand.tile,
+    borderColor: brand.line,
     borderRadius: 7,
     borderWidth: 1,
     flex: 1,
@@ -1524,7 +1553,7 @@ const styles = StyleSheet.create({
   setupSecondaryButton: {
     alignItems: 'center',
     backgroundColor: brand.white,
-    borderColor: brand.tile,
+    borderColor: brand.line,
     borderRadius: 7,
     borderWidth: 1,
     flex: 1,
@@ -1578,7 +1607,7 @@ const styles = StyleSheet.create({
   },
   zoomButtonCompact: {
     alignItems: 'center',
-    backgroundColor: brand.text,
+    backgroundColor: brand.charcoal,
     borderRadius: 7,
     height: 34,
     justifyContent: 'center',
@@ -1604,7 +1633,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   gameKicker: {
-    color: brand.tile,
+    color: brand.line,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0,
@@ -1618,7 +1647,7 @@ const styles = StyleSheet.create({
   },
   statusBadge: {
     alignItems: 'center',
-    backgroundColor: brand.deepMuted,
+    backgroundColor: brand.charcoal,
     borderRadius: 8,
     height: 34,
     justifyContent: 'center',
@@ -1631,9 +1660,67 @@ const styles = StyleSheet.create({
   },
   pageHeader: {
     alignItems: 'center',
+    backgroundColor: brand.white,
+    borderColor: brand.line,
+    borderRadius: 8,
+    borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 14,
+    overflow: 'hidden',
+    padding: 10,
+    paddingTop: 14,
+    position: 'relative',
+  },
+  pageHeaderAccent: {
+    flexDirection: 'row',
+    height: 4,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  pageHeaderAccentSegment: {
+    flex: 1,
+  },
+  pageHeaderAccentPaper: {
+    backgroundColor: brand.paper,
+  },
+  pageHeaderAccentLine: {
+    backgroundColor: brand.line,
+  },
+  pageHeaderAccentTile: {
+    backgroundColor: brand.tile,
+  },
+  pageHeaderAccentPrimary: {
+    backgroundColor: brand.primary,
+  },
+  pageTitleRow: {
+    alignItems: 'center',
+    columnGap: 10,
+    flex: 1,
+    flexDirection: 'row',
+    minWidth: 0,
+  },
+  pageTitleCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  brandMark: {
+    alignItems: 'center',
+    backgroundColor: brand.warmPanel,
+    borderColor: brand.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 48,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    width: 48,
+  },
+  brandMarkImage: {
+    height: 48,
+    opacity: 0.96,
+    width: 48,
   },
   header: {
     alignItems: 'center',
@@ -1662,7 +1749,7 @@ const styles = StyleSheet.create({
   },
   newButton: {
     alignItems: 'center',
-    backgroundColor: brand.text,
+    backgroundColor: brand.primary,
     borderRadius: 8,
     height: 42,
     justifyContent: 'center',
@@ -1699,7 +1786,7 @@ const styles = StyleSheet.create({
   },
   metric: {
     backgroundColor: brand.white,
-    borderColor: brand.tile,
+    borderColor: brand.line,
     borderRadius: 8,
     borderWidth: 1,
     flex: 1,
@@ -1724,7 +1811,7 @@ const styles = StyleSheet.create({
     color: brand.danger,
   },
   tabs: {
-    backgroundColor: brand.line,
+    backgroundColor: brand.surface,
     borderRadius: 8,
     flexDirection: 'row',
     marginBottom: 12,
@@ -1755,7 +1842,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   setupSummary: {
-    backgroundColor: brand.text,
+    backgroundColor: brand.charcoal,
     borderRadius: 8,
     marginBottom: 16,
     padding: 16,
@@ -1786,7 +1873,7 @@ const styles = StyleSheet.create({
   },
   levelButton: {
     backgroundColor: brand.white,
-    borderColor: brand.tile,
+    borderColor: brand.line,
     borderRadius: 8,
     borderWidth: 1,
     flex: 1,
@@ -1817,7 +1904,7 @@ const styles = StyleSheet.create({
   },
   customPanel: {
     backgroundColor: brand.white,
-    borderColor: brand.tile,
+    borderColor: brand.line,
     borderRadius: 8,
     borderWidth: 1,
     marginBottom: 16,
@@ -1881,7 +1968,7 @@ const styles = StyleSheet.create({
   gridScaleButtonLight: {
     alignItems: 'center',
     backgroundColor: brand.white,
-    borderColor: brand.tile,
+    borderColor: brand.line,
     borderRadius: 8,
     borderWidth: 1,
     flex: 1,
@@ -1903,7 +1990,7 @@ const styles = StyleSheet.create({
   },
   gameControls: {
     alignItems: 'center',
-    backgroundColor: brand.deep,
+    backgroundColor: brand.ink,
     columnGap: 8,
     flexDirection: 'row',
     paddingHorizontal: 10,
@@ -1913,7 +2000,7 @@ const styles = StyleSheet.create({
   controlButton: {
     alignItems: 'center',
     backgroundColor: brand.white,
-    borderColor: brand.tile,
+    borderColor: brand.line,
     borderRadius: 8,
     borderWidth: 1,
     height: 42,
@@ -1934,8 +2021,8 @@ const styles = StyleSheet.create({
   },
   controlButtonDark: {
     alignItems: 'center',
-    backgroundColor: brand.deepMuted,
-    borderColor: brand.primary,
+    backgroundColor: brand.charcoal,
+    borderColor: brand.graphiteLight,
     borderRadius: 8,
     borderWidth: 1,
     height: 42,
@@ -1950,7 +2037,7 @@ const styles = StyleSheet.create({
   },
   zoomButton: {
     alignItems: 'center',
-    backgroundColor: brand.text,
+    backgroundColor: brand.charcoal,
     borderRadius: 8,
     height: 42,
     justifyContent: 'center',
@@ -1979,7 +2066,7 @@ const styles = StyleSheet.create({
   zoomPanel: {
     alignItems: 'center',
     backgroundColor: brand.white,
-    borderColor: brand.tile,
+    borderColor: brand.line,
     borderRadius: 8,
     borderWidth: 1,
     columnGap: 10,
@@ -1988,7 +2075,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   boardShell: {
-    backgroundColor: brand.boardBoundary,
+    backgroundColor: brand.ink,
     flex: 1,
     overflow: 'hidden',
     position: 'relative',
@@ -1998,7 +2085,7 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
   boardEdgeIndicator: {
-    backgroundColor: brand.tile,
+    backgroundColor: brand.primary,
     opacity: 0.95,
     position: 'absolute',
   },
@@ -2041,8 +2128,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   boardFrame: {
-    backgroundColor: brand.deep,
-    borderColor: brand.line,
+    backgroundColor: brand.ink,
+    borderColor: brand.graphiteLight,
     borderRadius: 6,
     borderWidth: BOARD_FRAME_WIDTH,
     overflow: 'hidden',
@@ -2059,11 +2146,11 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   cellClosed: {
-    backgroundColor: brand.primary,
-    borderColor: brand.tile,
+    backgroundColor: brand.graphite,
+    borderColor: brand.graphiteLight,
   },
   cellOpen: {
-    backgroundColor: brand.surface,
+    backgroundColor: brand.warmPanel,
     borderColor: brand.line,
   },
   cellExploded: {
@@ -2080,7 +2167,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
   },
   cellSupportHint: {
-    borderColor: brand.tile,
+    borderColor: brand.primaryLight,
     borderWidth: 3,
   },
   cellPulse: {
@@ -2091,7 +2178,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   cellSupportPulse: {
-    backgroundColor: brand.tile,
+    backgroundColor: brand.primarySoft,
     borderColor: brand.paper,
   },
   cellText: {
@@ -2117,13 +2204,22 @@ const styles = StyleSheet.create({
     zIndex: 30,
   },
   completionPanel: {
-    backgroundColor: brand.paper,
+    backgroundColor: brand.warmPanel,
     borderColor: brand.line,
     borderRadius: 8,
     borderWidth: 1,
     maxWidth: 430,
     padding: 16,
     width: '100%',
+  },
+  completionHeader: {
+    alignItems: 'center',
+    columnGap: 10,
+    flexDirection: 'row',
+  },
+  completionTitleBlock: {
+    flex: 1,
+    minWidth: 0,
   },
   completionKicker: {
     color: brand.primary,
@@ -2152,7 +2248,7 @@ const styles = StyleSheet.create({
   },
   resultStat: {
     backgroundColor: brand.white,
-    borderColor: brand.tile,
+    borderColor: brand.line,
     borderRadius: 8,
     borderWidth: 1,
     flexBasis: '48%',
@@ -2178,7 +2274,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   recordCard: {
-    backgroundColor: brand.text,
+    backgroundColor: brand.charcoal,
     borderColor: brand.primary,
     borderRadius: 8,
     borderWidth: 1,
@@ -2199,7 +2295,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   recordBadge: {
-    color: brand.primary,
+    color: brand.tile,
     fontSize: 11,
     fontWeight: '900',
     marginTop: 4,
@@ -2213,7 +2309,7 @@ const styles = StyleSheet.create({
     rowGap: 6,
   },
   completionMeta: {
-    backgroundColor: brand.line,
+    backgroundColor: brand.surface,
     borderRadius: 6,
     color: brand.text,
     fontSize: 12,
@@ -2245,7 +2341,7 @@ const styles = StyleSheet.create({
   completionButton: {
     alignItems: 'center',
     backgroundColor: brand.white,
-    borderColor: brand.tile,
+    borderColor: brand.line,
     borderRadius: 8,
     borderWidth: 1,
     flexBasis: '23%',
@@ -2263,7 +2359,9 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   coachHero: {
-    backgroundColor: brand.text,
+    backgroundColor: brand.charcoal,
+    borderColor: brand.primary,
+    borderWidth: 1,
     borderRadius: 8,
     padding: 18,
   },
@@ -2301,8 +2399,8 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   moveReview: {
-    backgroundColor: brand.deepMuted,
-    borderColor: brand.primary,
+    backgroundColor: brand.ink,
+    borderColor: brand.graphiteLight,
     borderRadius: 8,
     borderWidth: 1,
     marginTop: 14,
@@ -2367,7 +2465,7 @@ const styles = StyleSheet.create({
   },
   coachStat: {
     backgroundColor: brand.white,
-    borderColor: brand.tile,
+    borderColor: brand.line,
     borderRadius: 8,
     borderWidth: 1,
     flex: 1,
@@ -2388,7 +2486,7 @@ const styles = StyleSheet.create({
   },
   lastMatch: {
     backgroundColor: brand.white,
-    borderColor: brand.tile,
+    borderColor: brand.line,
     borderRadius: 8,
     borderWidth: 1,
     marginTop: 12,
@@ -2423,7 +2521,7 @@ const styles = StyleSheet.create({
   resetStatsButton: {
     alignItems: 'center',
     backgroundColor: brand.white,
-    borderColor: brand.tile,
+    borderColor: brand.line,
     borderRadius: 8,
     borderWidth: 1,
     height: 40,
@@ -2444,7 +2542,7 @@ const styles = StyleSheet.create({
   levelStatRow: {
     alignItems: 'center',
     backgroundColor: brand.white,
-    borderColor: brand.tile,
+    borderColor: brand.line,
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: 'row',
@@ -2477,7 +2575,7 @@ const styles = StyleSheet.create({
   recentRow: {
     alignItems: 'center',
     backgroundColor: brand.white,
-    borderColor: brand.tile,
+    borderColor: brand.line,
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: 'row',
@@ -2496,8 +2594,8 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   screenNav: {
-    backgroundColor: brand.surface,
-    borderTopColor: brand.tile,
+    backgroundColor: brand.white,
+    borderTopColor: brand.line,
     borderTopWidth: 1,
     columnGap: 6,
     flexDirection: 'row',
@@ -2506,7 +2604,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   screenNavDark: {
-    backgroundColor: brand.deep,
+    backgroundColor: brand.ink,
     borderTopColor: brand.primary,
   },
   screenNavButton: {

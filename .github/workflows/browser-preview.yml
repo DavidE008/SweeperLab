@@ -1,0 +1,26 @@
+name: Browser preview
+on:
+  push:
+    branches: [beta/trainer-preview]
+  workflow_dispatch:
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm install --no-save react-dom@19.1.0 react-native-web@~0.21.0 @expo/metro-runtime@~6.1.2
+      - run: npx expo export --platform web
+      - run: node scripts/package-preview.cjs
+      - run: npm install --no-save --prefix "$RUNNER_TEMP/browser-test" playwright
+      - run: "$RUNNER_TEMP/browser-test/node_modules/.bin/playwright install --with-deps chromium"
+      - run: NODE_PATH="$RUNNER_TEMP/browser-test/node_modules" node scripts/check-preview.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SweeperLab-browser-preview
+          path: preview/SweeperLab.html

@@ -1,0 +1,22 @@
+name: Expo Go preview
+on: [push, pull_request]
+jobs:
+  metro:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Load Expo Go manifests and native bundles
+        run: |
+          CI=1 npm run go -- --port 8081 > metro.log 2>&1 &
+          trap 'cat metro.log' EXIT
+          for platform in ios android; do
+            curl --retry 20 --retry-connrefused --retry-delay 2 -fsS -H "expo-platform: $platform" -H 'accept: application/expo+json' http://localhost:8081 > manifest.json
+            bundle=$(jq -er '.launchAsset.url' manifest.json)
+            curl -fsS "$bundle" -o app.bundle
+            test -s app.bundle
+          done

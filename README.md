@@ -2,6 +2,12 @@
 
 A mobile-first Minesweeper trainer built with Expo and React Native.
 
+## Preview on your phone with Expo Go
+
+Download and extract this branch, then double-click **Start-Expo-Go.cmd** on Windows. The launcher installs the locked dependencies and starts Metro in Expo Go mode. From an existing checkout on any platform, run `npm ci` and `npm run go`.
+
+Connect the phone and computer to the same Wi-Fi and keep the terminal open. Scan its QR code using Camera on iPhone or Expo Go on Android. Use an SDK 54 build of Expo Go from https://expo.dev/go?sdkVersion=54 if your installed version reports a mismatch. If Wi-Fi isolates devices, stop Metro and run `npx expo start --go --tunnel`; accept the tunnel helper installation if prompted.
+
 ## Run locally
 
 ```bash

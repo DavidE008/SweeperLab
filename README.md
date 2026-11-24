@@ -11,7 +11,7 @@ npm ci
 npm run go
 ```
 
-Connect the phone and computer to the same Wi-Fi and keep the terminal open. Scan its QR code using Camera on iPhone or Expo Go on Android. Use an SDK 54 build of Expo Go from https://expo.dev/go?sdkVersion=54 if your installed version reports a mismatch. If Wi-Fi isolates devices, stop Metro and run `npx expo start --go --tunnel`; accept the tunnel helper installation if prompted.
+Connect the phone and computer to the same Wi-Fi and keep the terminal open. Scan its QR code using Camera on iPhone or Expo Go on Android. Use an SDK 58 build of Expo Go from https://expo.dev/go?sdkVersion=58 if your installed version reports a mismatch. If Wi-Fi isolates devices, stop Metro and run `npx expo start --go --tunnel`; accept the tunnel helper installation if prompted.
 
 ## Run locally
 

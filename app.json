@@ -12,7 +12,8 @@
       "backgroundColor": "#E6F9FF"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.davideldridge.sweeperlab"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +22,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.davideldridge.sweeperlab"
     },
     "web": {
       "favicon": "./assets/favicon.png"

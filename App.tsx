@@ -7,6 +7,7 @@ import {
   Image,
   LayoutChangeEvent,
   PanResponder,
+  AppState,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -96,6 +97,8 @@ const GRID_SCALE_OPTIONS: { key: GridScaleKey; label: string; minCellSize: numbe
 
 const brandMarkSource = require('./assets/icon.png');
 
+import { DeductionLesson } from './src/ui/DeductionLesson';
+
 function formatTime(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
@@ -137,6 +140,10 @@ export default function App() {
   const [screen, setScreen] = useState<ScreenKey>('game');
   const [isSetupOpen, setSetupOpen] = useState(true);
   const [gridScale, setGridScale] = useState<GridScaleKey>('standard');
+  const [lessonOpen, setLessonOpen] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [foreground, setForeground] = useState(AppState.currentState !== 'background');
+  const writes = useRef(Promise.resolve());
   const [stats, setStats] = useState<StoredStats>(() => createStats());
   const [lastMatch, setLastMatch] = useState<MatchSummary | null>(null);
   const [completion, setCompletion] = useState<CompletionSummary | null>(null);
@@ -200,22 +207,54 @@ export default function App() {
   const boardPixelHeight = boardGridHeight + BOARD_FRAME_WIDTH * 2;
 
   useEffect(() => {
-    AsyncStorage.getItem(STATS_KEY)
-      .then((rawStats) => {
-        if (rawStats) {
-          setStats(mergeStats(JSON.parse(rawStats)));
-        }
-      })
-      .catch(() => undefined);
+    let mounted = true;
+    async function restore() {
+      const raw = await AsyncStorage.getItem('sweeperlab.session.v1');
+      const legacy = raw ? null : await AsyncStorage.getItem(STATS_KEY);
+      if (!mounted) return;
+      const saved = raw ? JSON.parse(raw) : null;
+      const history = mergeStats(saved?.stats ?? (legacy ? JSON.parse(legacy) : null));
+      setStats(history);
+      setLastMatch(history.recent[0] ?? null);
+      const game = saved?.game;
+      if (game && Array.isArray(game.board) && game.board.length === game.setup?.rows &&
+          game.board.every((row: unknown) => Array.isArray(row) && row.length === game.setup.cols)) {
+        setSetup(game.setup);
+        setBoard(game.board);
+        setElapsed(game.elapsed);
+        setClicks(game.clicks);
+        setChords(game.chords);
+        setHints(game.hints);
+        setFlagMode(game.flagMode);
+        setStatus('playing');
+        setSetupOpen(false);
+      }
+    }
+    restore().catch(() => undefined).finally(() => { if (mounted) setLoaded(true); });
+    const subscription = AppState.addEventListener('change', state => setForeground(state === 'active'));
+    return () => { mounted = false; subscription.remove(); };
   }, []);
 
+  const elapsedRef = useRef(elapsed);
+  elapsedRef.current = elapsed;
+  const checkpoint = Math.floor(elapsed / 5);
   useEffect(() => {
-    if (status !== 'playing') {
+    if (!loaded) return;
+    const game = status === 'playing' ? {
+      setup, board, elapsed: elapsedRef.current, clicks, chords, hints, flagMode,
+    } : null;
+    const payload = JSON.stringify({ stats, game });
+    writes.current = writes.current.then(() => AsyncStorage.setItem('sweeperlab.session.v1', payload))
+      .catch(() => undefined);
+  }, [loaded, status, stats, setup, board, clicks, chords, hints, flagMode, checkpoint, foreground]);
+
+  useEffect(() => {
+    if (status !== 'playing' || !foreground || lessonOpen) {
       return undefined;
     }
     const timer = setInterval(() => setElapsed((value) => value + 1), 1000);
     return () => clearInterval(timer);
-  }, [status]);
+  }, [status, foreground, lessonOpen]);
 
   useEffect(() => {
     setCustomMines((value) => clamp(value, MIN_MINES, customMaxMines));
@@ -433,7 +472,6 @@ export default function App() {
         },
         recent: [match, ...merged.recent].slice(0, 8),
       };
-      AsyncStorage.setItem(STATS_KEY, JSON.stringify(next)).catch(() => undefined);
       return next;
     });
   }
@@ -703,7 +741,6 @@ export default function App() {
           const emptyStats = createStats();
           setStats(emptyStats);
           setLastMatch(null);
-          AsyncStorage.setItem(STATS_KEY, JSON.stringify(emptyStats)).catch(() => undefined);
         },
       },
     ]);
@@ -766,6 +803,8 @@ export default function App() {
 
     return (
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Row ${cell.row + 1}, column ${cell.col + 1}, ${cell.isFlagged ? 'flagged' : !cell.isRevealed ? 'covered' : cell.isMine ? 'mine' : cell.neighborMines || 'empty'}`}
         key={keyOf(cell.row, cell.col)}
         onLongPress={() => toggleFlag(cell.row, cell.col)}
         onPress={() => handleCellPress(cell)}
@@ -824,6 +863,9 @@ export default function App() {
 
   const statusText =
     status === 'ready' ? 'Ready' : status === 'playing' ? 'Sweeping' : status === 'won' ? 'Cleared' : 'Mine hit';
+  if (!loaded) return <SafeAreaView style={styles.safe}><Text>Loading game…</Text></SafeAreaView>;
+  if (lessonOpen) return <DeductionLesson onClose={() => setLessonOpen(false)} />;
+
   const pageTitle = screen === 'coach' ? 'Coach' : screen === 'progress' ? 'Stats' : 'SweeperLab';
   const pageSubtitle =
     screen === 'setup'
@@ -845,6 +887,7 @@ export default function App() {
               <View style={styles.hudButtons}>
                 <Pressable
                   style={[styles.hudButton, (isSetupOpen || canOpenResultMenu) && styles.hudButtonActive]}
+                  accessibilityLabel={canOpenResultMenu ? 'Match result' : 'Game setup'}
                   onPress={canOpenResultMenu ? openResultMenu : () => setSetupOpen((value) => !value)}
                 >
                   <Text style={[styles.hudButtonText, (isSetupOpen || canOpenResultMenu) && styles.hudButtonTextActive]}>
@@ -853,14 +896,15 @@ export default function App() {
                 </Pressable>
                 <Pressable
                   style={[styles.hudButton, flagMode && styles.hudButtonActive]}
+                  accessibilityLabel="Flag mode" accessibilityRole="togglebutton" accessibilityState={{ checked: flagMode }}
                   onPress={() => setFlagMode((value) => !value)}
                 >
                   <Text style={[styles.hudButtonText, flagMode && styles.hudButtonTextActive]}>F</Text>
                 </Pressable>
-                <Pressable style={styles.hudButton} onPress={requestHint}>
+                <Pressable accessibilityLabel="Request a hint" style={styles.hudButton} onPress={requestHint}>
                   <Text style={styles.hudButtonText}>?</Text>
                 </Pressable>
-                <Pressable style={styles.hudButton} onPress={() => resetGame()}>
+                <Pressable accessibilityLabel="Start a new game" style={styles.hudButton} onPress={() => resetGame()}>
                   <Text style={styles.hudButtonText}>NEW</Text>
                 </Pressable>
               </View>
@@ -881,6 +925,9 @@ export default function App() {
                   </Pressable>
                 </View>
 
+                <Pressable style={styles.setupSecondaryButton} onPress={() => setLessonOpen(true)}>
+                  <Text>Learn in 60 seconds</Text>
+                </Pressable>
                 <View style={styles.levelRowCompact}>
                   {(Object.keys(PRESETS) as Exclude<LevelKey, 'custom'>[]).map((key) => {
                     const preset = PRESETS[key];
@@ -2081,7 +2128,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   boardEdgeOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 3,
   },
   boardEdgeIndicator: {
@@ -2171,7 +2218,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
   },
   cellPulse: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: brand.primary,
     borderColor: brand.tile,
     borderRadius: 4,
@@ -2196,7 +2243,7 @@ const styles = StyleSheet.create({
     color: brand.white,
   },
   completionOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     backgroundColor: brand.overlay,
     justifyContent: 'center',

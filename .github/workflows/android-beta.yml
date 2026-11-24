@@ -1,0 +1,31 @@
+name: Android beta APK
+on:
+  push:
+    branches: [beta/trainer-preview]
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: npm ci
+      - run: npx expo prebuild --platform android --no-install
+      # Expo's generated release variant bundles JS and uses the local debug key.
+      # This APK is for sideloaded testing only.
+      - working-directory: android
+        run: bash gradlew assembleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SweeperLab-android-beta
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error

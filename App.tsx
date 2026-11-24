@@ -2128,7 +2128,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   boardEdgeOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 3,
   },
   boardEdgeIndicator: {
@@ -2218,7 +2218,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
   },
   cellPulse: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: brand.primary,
     borderColor: brand.tile,
     borderRadius: 4,
@@ -2243,7 +2243,7 @@ const styles = StyleSheet.create({
     color: brand.white,
   },
   completionOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     backgroundColor: brand.overlay,
     justifyContent: 'center',

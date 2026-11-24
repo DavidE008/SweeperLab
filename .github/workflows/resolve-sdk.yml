@@ -1,0 +1,38 @@
+name: Resolve SDK 58 dependencies
+on:
+  push:
+    branches: [build/resolve-expo-58]
+permissions:
+  contents: write
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Resolve the SDK package matrix
+        run: |
+          npm install --prefix "$RUNNER_TEMP/sdk" expo@~58.0.0
+          SDK="$RUNNER_TEMP/sdk" node <<'NODE'
+          const fs = require('fs');
+          const matrix = require(process.env.SDK + '/node_modules/expo/bundledNativeModules.json');
+          const pkg = require('./package.json');
+          pkg.dependencies.expo = '~58.0.0';
+          for (const name of ['react-dom','react-native-web','@expo/metro-runtime']) pkg.dependencies[name] = matrix[name];
+          for (const group of [pkg.dependencies,pkg.devDependencies]) {
+            for (const name of Object.keys(group)) if (matrix[name]) group[name] = matrix[name];
+          }
+          pkg.devDependencies['jest-expo'] = '~58.0.0';
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          NODE
+          npm install
+          npx expo install --fix
+          npm ci
+          npx expo install --check
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add package.json package-lock.json
+          git commit -m "Lock Expo SDK 58 and compatible native and web dependencies"
+          git push
